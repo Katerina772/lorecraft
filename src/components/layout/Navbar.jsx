@@ -17,6 +17,7 @@ const categories = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false); // для мобільного підменю
+  const [desktopHover, setDesktopHover] = useState(false); // для десктопного наведення
 
   return (
     <nav className="bg-card shadow-sm sticky top-0 z-50">
@@ -41,29 +42,32 @@ export default function Navbar() {
             Library
           </Link>
 
-          {/* Випадаюче меню категорій */}
-          <div className="relative">
-            <button
-              onClick={() => setCategoriesOpen(!categoriesOpen)}
+          {/* Категорії з випадаючим меню при наведенні
+          <div
+            className="relative"
+            onMouseEnter={() => setDesktopHover(true)}
+            onMouseLeave={() => setDesktopHover(false)}
+          >
+            <Link
+              to="/library"
               className="text-text hover:text-button transition-colors flex items-center gap-1"
             >
               Categories ▾
-            </button>
-            {categoriesOpen && (
+            </Link>
+            {desktopHover && (
               <div className="absolute top-full left-0 mt-2 bg-card rounded-xl shadow-xl p-4 grid grid-cols-2 gap-2 w-64">
                 {categories.map((cat) => (
                   <Link
                     key={cat}
                     to={`/library?genre=${cat}`}
                     className="text-sm font-medium px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors"
-                    onClick={() => setCategoriesOpen(false)}
                   >
                     {cat}
                   </Link>
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
 
           <Link
             to="/create"
@@ -100,7 +104,7 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* Кнопка бургер-меню (мобільна) */}
+        {/* Бургер-меню (мобільна) */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="md:hidden p-2 rounded-lg text-text hover:bg-primary/20 transition-colors"
@@ -150,7 +154,7 @@ export default function Navbar() {
               Library
             </Link>
 
-            {/* Категорії з підменю */}
+            {/* Категорії з підменю (мобільна версія) */}
             <div>
               <button
                 onClick={() => setCategoriesOpen(!categoriesOpen)}

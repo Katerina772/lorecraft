@@ -66,7 +66,7 @@ export default function Carousel({ items, renderItem }) {
         className="flex gap-6 overflow-x-auto scroll-smooth py-2 scrollbar-hide"
       >
         {items.map((item, index) => (
-          <div key={item.id || index} className="flex-shrink-0 w-64">
+          <div key={item.id || index} className="flex-shrink-0 w-72">
             {renderItem(item)}
           </div>
         ))}

@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import Home from "../pages/Home";
-// import Library, Quest, Profile, CreateQuest, Login, Register later
+import Library from "../pages/Library";
+import Quest from "../pages/Quest";
+import CreateQuest from "../pages/CreateQuest";
 
 export default function AppRouter() {
   return (
@@ -9,7 +11,9 @@ export default function AppRouter() {
       <MainLayout>
         <Routes>
           <Route path="/" element={<Home />} />
-          {/* Інші маршрути додаси пізніше */}
+          <Route path="/library" element={<Library />} /> {/* було "/" */}
+          <Route path="/quest/:id" element={<Quest />} />
+          <Route path="/create" element={<CreateQuest />} />
         </Routes>
       </MainLayout>
     </BrowserRouter>

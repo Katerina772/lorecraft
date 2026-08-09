@@ -1,6 +1,7 @@
 import Hero from "../components/home/Hero";
 import QuestSection from "../components/home/QuestSection";
 import { popularQuests, newQuests } from "../data/quests";
+import { Flame, Sparkles } from "lucide-react";
 
 export default function Home() {
   return (
@@ -8,13 +9,13 @@ export default function Home() {
       <Hero />
       <QuestSection
         title="Popular quests"
-        icon="🌿"
+        icon={<Flame size={24} />}
         quests={popularQuests}
         layout="carousel"
       />
       <QuestSection
         title="New adventures"
-        icon="✨"
+        icon={<Sparkles size={24} />}
         quests={newQuests}
         layout="carousel"
       />

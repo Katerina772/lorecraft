@@ -1,32 +1,47 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
-  // Завантажуємо користувача з localStorage при старті
   useEffect(() => {
     const stored = localStorage.getItem("user");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
+    if (stored) setUser(JSON.parse(stored));
   }, []);
 
+  // Синхронізуємо зміни користувача з localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+      // Також оновлюємо в загальному списку користувачів
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      const updatedUsers = users.map((u) => (u.id === user.id ? user : u));
+      localStorage.setItem("users", JSON.stringify(updatedUsers));
+    }
+  }, [user]);
+
   const register = (userData) => {
-    // Перевіряємо, чи існує користувач з таким email
     const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const existing = users.find((u) => u.email === userData.email);
-    if (existing) {
+    if (users.find((u) => u.email === userData.email)) {
       throw new Error("Користувач з таким email вже існує");
     }
-    // Зберігаємо нового користувача
-    const newUser = { ...userData, id: Date.now() };
+    const newUser = {
+      ...userData,
+      id: Date.now(),
+      bio: "",
+      avatar: "",
+      joined: new Date().toISOString(),
+    };
     users.push(newUser);
     localStorage.setItem("users", JSON.stringify(users));
-    // Автоматично входимо
     setUser(newUser);
-    localStorage.setItem("user", JSON.stringify(newUser));
   };
 
   const login = (email, password) => {
@@ -34,11 +49,8 @@ export function AuthProvider({ children }) {
     const found = users.find(
       (u) => u.email === email && u.password === password,
     );
-    if (!found) {
-      throw new Error("Невірний email або пароль");
-    }
+    if (!found) throw new Error("Невірний email або пароль");
     setUser(found);
-    localStorage.setItem("user", JSON.stringify(found));
   };
 
   const logout = () => {
@@ -46,8 +58,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
   };
 
+  const updateProfile = useCallback((updates) => {
+    setUser((prev) => (prev ? { ...prev, ...updates } : null));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, register, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, register, login, logout, updateProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -435,45 +435,109 @@ export default function NovelEditor({ questMeta, onBack }) {
   );
 }
 
-// Компонент програвача (режим перегляду)
+// // Компонент програвача (режим перегляду)
+
+// function Player({ scenes, sceneId, onNavigate, onRestart }) {
+//   const scene = scenes.find((s) => s.id === sceneId) || scenes[0];
+//   const isImage = /^https?:\/\//.test(scene.background);
+//   const hasCharacterImage =
+//     scene.characterImage && /^https?:\/\//.test(scene.characterImage);
+
+//   return (
+//     <div
+//       className="flex-1 flex flex-col justify-end min-h-[520px] relative"
+//       style={{
+//         background: isImage
+//           ? `url(${scene.background}) center/cover`
+//           : scene.background,
+//       }}
+//     >
+//       {/* Спрайт персонажа — тепер з більшим відступом знизу */}
+//       {hasCharacterImage && (
+//         <img
+//           src={scene.characterImage}
+//           alt={scene.characterName}
+//           className="absolute bottom-56 left-1/2 transform -translate-x-1/2 max-h-64 object-contain z-10"
+//         />
+//       )}
+
+//       {/* Текстовий блок: більше місця знизу, більший шрифт */}
+//       <div
+//         className={`mt-auto w-full bg-card/85 backdrop-blur-sm border-t border-primary/20 px-6 py-4 ${
+//           hasCharacterImage ? "pt-12" : ""
+//         }`}
+//         style={{ maxHeight: "70%", overflowY: "auto" }}
+//       >
+//         {scene.characterName && (
+//           <div className="text-button font-bold text-base mb-2">
+//             {scene.characterName}
+//           </div>
+//         )}
+//         <p className="text-text text-base leading-relaxed mb-4">{scene.text}</p>
+
+//         {scene.choices.length > 0 ? (
+//           <div className="flex flex-wrap gap-3">
+//             {scene.choices.map((c) => (
+//               <button
+//                 key={c.id}
+//                 onClick={() => onNavigate(c.targetId)}
+//                 className="px-5 py-2.5 bg-card hover:bg-primary/30 border border-primary/30 rounded-lg text-base font-medium text-text transition-colors"
+//               >
+//                 {c.label}
+//               </button>
+//             ))}
+//           </div>
+//         ) : (
+//           <Button variant="primary" onClick={onRestart}>
+//             Restart
+//           </Button>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
 
 function Player({ scenes, sceneId, onNavigate, onRestart }) {
   const scene = scenes.find((s) => s.id === sceneId) || scenes[0];
   const isImage = /^https?:\/\//.test(scene.background);
   const hasCharacterImage =
-    scene.characterImage && /^https?:\/\//.test(scene.characterImage);
+    scene.characterImage && scene.characterImage.trim().length > 0;
 
   return (
-    <div
-      className="flex-1 flex flex-col justify-end min-h-[520px] relative"
-      style={{
-        background: isImage
-          ? `url(${scene.background}) center/cover`
-          : scene.background,
-      }}
-    >
-      {/* Спрайт персонажа — тепер з більшим відступом знизу */}
-      {hasCharacterImage && (
-        <img
-          src={scene.characterImage}
-          alt={scene.characterName}
-          className="absolute bottom-56 left-1/2 transform -translate-x-1/2 max-h-64 object-contain z-10"
-        />
-      )}
-
-      {/* Текстовий блок: більше місця знизу, більший шрифт */}
+    <div className="flex flex-col min-h-[520px] bg-background">
+      {/* Верхня область: фон сцени + спрайт персонажа */}
       <div
-        className={`bg-black/80 border-t border-primary/30 px-6 py-6 ${
-          hasCharacterImage ? "pt-16" : "pt-6"
-        }`}
-        style={{ minHeight: hasCharacterImage ? "200px" : "150px" }}
+        className="flex-1 relative overflow-hidden"
+        style={{
+          background: isImage
+            ? `url(${scene.background}) center/cover`
+            : scene.background,
+        }}
+      >
+        {hasCharacterImage && (
+          <img
+            src={scene.characterImage}
+            alt={scene.characterName}
+            className="absolute inset-4 mx-auto object-contain"
+            style={{
+              maxWidth: "calc(100% - 2rem)",
+              maxHeight: "calc(100% - 2rem)",
+            }}
+          />
+        )}
+      </div>
+
+      {/* Текстова панель завжди знизу */}
+      <div
+        className="flex-shrink-0 bg-card/90 backdrop-blur border-t border-primary/20 px-6 py-5"
+        style={{ maxHeight: "50%", overflowY: "auto" }}
       >
         {scene.characterName && (
-          <div className="text-button font-bold text-base mb-3">
+          <div className="text-button font-bold text-base mb-2">
             {scene.characterName}
           </div>
         )}
-        <p className="text-base leading-relaxed mb-5">{scene.text}</p>
+        <p className="text-text text-base leading-relaxed mb-4">{scene.text}</p>
 
         {scene.choices.length > 0 ? (
           <div className="flex flex-wrap gap-3">
@@ -481,7 +545,7 @@ function Player({ scenes, sceneId, onNavigate, onRestart }) {
               <button
                 key={c.id}
                 onClick={() => onNavigate(c.targetId)}
-                className="px-5 py-2.5 bg-primary/20 hover:bg-primary/40 border border-button/30 rounded-lg text-base font-medium transition-colors"
+                className="px-5 py-2.5 bg-card hover:bg-primary/30 border border-primary/30 rounded-lg text-base font-medium text-text transition-colors"
               >
                 {c.label}
               </button>

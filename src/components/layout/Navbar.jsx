@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "../ui/Button";
+import { useAuth } from "../../context/AuthContext";
+import { LogOut, User } from "lucide-react"; // додайте до існуючих імпортів
 
 const categories = [
   "Fantasy",
@@ -18,6 +20,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false); // для мобільного підменю
   const [desktopHover, setDesktopHover] = useState(false); // для десктопного наведення
+  const { user, logout } = useAuth();
 
   return (
     <nav className="bg-card shadow-sm sticky top-0 z-50">
@@ -90,7 +93,7 @@ export default function Navbar() {
         </div>
 
         {/* Кнопки входу/реєстрації (десктоп) */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* <div className="hidden md:flex items-center gap-3">
           <Link
             to="/login"
             className="text-base font-semibold text-text hover:text-button transition-colors"
@@ -102,7 +105,39 @@ export default function Navbar() {
               Register
             </Button>
           </Link>
-        </div>
+        </div> */}
+
+        {user ? (
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 text-text hover:text-button transition-colors"
+            >
+              <User size={18} />
+              <span className="text-sm font-medium">{user.username}</span>
+            </Link>
+            <button
+              onClick={logout}
+              className="text-text/60 hover:text-red-400 transition-colors"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              to="/login"
+              className="text-base font-semibold text-text hover:text-button transition-colors"
+            >
+              Login
+            </Link>
+            <Link to="/register">
+              <Button variant="primary" className="text-sm px-5 py-2.5">
+                Register
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Бургер-меню (мобільна) */}
         <button
@@ -217,7 +252,7 @@ export default function Navbar() {
             </Link>
 
             <hr className="border-primary/20 my-2" />
-            <div className="flex flex-col gap-3">
+            {/* <div className="flex flex-col gap-3">
               <Link
                 to="/login"
                 className="block py-2 text-lg font-semibold text-text hover:text-button"
@@ -230,7 +265,49 @@ export default function Navbar() {
                   Register
                 </Button>
               </Link>
-            </div>
+            </div> */}
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="block py-2 text-lg font-semibold text-text hover:text-button"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/my-library"
+                  className="block py-2 text-lg font-semibold text-text hover:text-button"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  My Library
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileOpen(false);
+                  }}
+                  className="block py-2 text-lg font-semibold text-text hover:text-button text-left"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="block py-2 text-lg font-semibold text-text hover:text-button"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link to="/register" onClick={() => setMobileOpen(false)}>
+                  <Button variant="primary" className="w-full text-center">
+                    Register
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { Search, User } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { allQuests } from "../data/quests";
+// import { allQuests } from "../data/quests";
+import { allQuests as staticQuests } from "../data/quests";
 import QuestCard from "../components/quest/QuestCard";
 
 const genres = [
@@ -28,7 +29,13 @@ const sortOptions = [
 
 const ITEMS_PER_PAGE = 8;
 
+function getAllQuests() {
+  const published = JSON.parse(localStorage.getItem("publishedQuests") || "[]");
+  return [...staticQuests, ...published];
+}
+
 export default function Library() {
+  const allQuests = getAllQuests();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTitle, setSearchTitle] = useState("");
   const [searchAuthor, setSearchAuthor] = useState("");

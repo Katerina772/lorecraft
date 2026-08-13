@@ -2,7 +2,7 @@
 // import { useAuth } from "../context/AuthContext";
 // import { BookOpen, Clock, Heart, FileText } from "lucide-react";
 // import QuestCard from "../components/quest/QuestCard";
-// import { allQuests } from "../data/quests";
+// import { allQuests as staticQuests } from "../data/quests";
 
 // const tabs = [
 //   { key: "in-progress", label: "В процесі", icon: <Clock size={18} /> },
@@ -15,23 +15,31 @@
 //   const [activeTab, setActiveTab] = useState("in-progress");
 //   const { user } = useAuth();
 
-//   // Тимчасові дані – пізніше будемо брати з localStorage або API
-//   const inProgressIds =
-//     JSON.parse(localStorage.getItem("progress") || "{}")[user?.id] || [];
-//   const favoritesIds = JSON.parse(localStorage.getItem("favorites") || "[]");
-//   const myQuestsIds = JSON.parse(localStorage.getItem("userQuests") || "[]");
+//   // Отримуємо всі опубліковані квести (глобальні) + статичні
+//   const publishedQuests = JSON.parse(
+//     localStorage.getItem("publishedQuests") || "[]",
+//   );
+//   const allQuests = [...staticQuests, ...publishedQuests];
 
-//   // Фільтруємо квести з allQuests для демонстрації
+//   // Персональні дані користувача з localStorage
+//   const progressData = JSON.parse(localStorage.getItem("progress") || "{}");
+//   const inProgressIds = user ? progressData[user.id] || [] : [];
+//   const favoritesIds = JSON.parse(localStorage.getItem("favorites") || "[]");
+//   const myQuestsIds = user
+//     ? JSON.parse(localStorage.getItem(`userQuests_${user.id}`) || "[]")
+//     : [];
+
 //   const getQuests = () => {
 //     switch (activeTab) {
 //       case "in-progress":
 //         return allQuests.filter((q) => inProgressIds.includes(q.id));
 //       case "completed":
-//         return allQuests.slice(0, 2); // приклад
+//         // Поки що приклад, пізніше можна замінити на реальну логіку завершених квестів
+//         return allQuests.slice(0, 2);
 //       case "favorites":
 //         return allQuests.filter((q) => favoritesIds.includes(q.id));
 //       case "my-quests":
-//         return allQuests.filter((q) => myQuestsIds.includes(q.id));
+//         return publishedQuests.filter((q) => myQuestsIds.includes(q.id));
 //       default:
 //         return [];
 //     }
@@ -86,8 +94,9 @@
 // }
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { BookOpen, Clock, Heart, FileText } from "lucide-react";
+import { BookOpen, Clock, Heart, FileText, ArrowLeft } from "lucide-react";
 import QuestCard from "../components/quest/QuestCard";
 import { allQuests as staticQuests } from "../data/quests";
 
@@ -102,15 +111,17 @@ export default function MyLibrary() {
   const [activeTab, setActiveTab] = useState("in-progress");
   const { user } = useAuth();
 
-  // Отримуємо всі опубліковані квести (глобальні) + статичні
   const publishedQuests = JSON.parse(
     localStorage.getItem("publishedQuests") || "[]",
   );
   const allQuests = [...staticQuests, ...publishedQuests];
 
-  // Персональні дані користувача з localStorage
   const progressData = JSON.parse(localStorage.getItem("progress") || "{}");
   const inProgressIds = user ? progressData[user.id] || [] : [];
+
+  const completedData = JSON.parse(localStorage.getItem("completed") || "{}");
+  const completedIds = user ? completedData[user.id] || [] : [];
+
   const favoritesIds = JSON.parse(localStorage.getItem("favorites") || "[]");
   const myQuestsIds = user
     ? JSON.parse(localStorage.getItem(`userQuests_${user.id}`) || "[]")
@@ -121,8 +132,7 @@ export default function MyLibrary() {
       case "in-progress":
         return allQuests.filter((q) => inProgressIds.includes(q.id));
       case "completed":
-        // Поки що приклад, пізніше можна замінити на реальну логіку завершених квестів
-        return allQuests.slice(0, 2);
+        return allQuests.filter((q) => completedIds.includes(q.id));
       case "favorites":
         return allQuests.filter((q) => favoritesIds.includes(q.id));
       case "my-quests":
@@ -136,6 +146,15 @@ export default function MyLibrary() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
+      {/* Кнопка назад до профілю */}
+      <Link
+        to="/profile"
+        className="inline-flex items-center gap-2 text-text/60 hover:text-button mb-6 transition-colors"
+      >
+        <ArrowLeft size={18} />
+        <span>Назад до профілю</span>
+      </Link>
+
       <h1 className="text-3xl font-heading font-bold text-text mb-8">
         Особиста бібліотека
       </h1>

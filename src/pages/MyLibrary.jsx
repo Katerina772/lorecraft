@@ -1,6 +1,7 @@
 // import { useState } from "react";
+// import { Link } from "react-router-dom";
 // import { useAuth } from "../context/AuthContext";
-// import { BookOpen, Clock, Heart, FileText } from "lucide-react";
+// import { BookOpen, Clock, Heart, FileText, ArrowLeft } from "lucide-react";
 // import QuestCard from "../components/quest/QuestCard";
 // import { allQuests as staticQuests } from "../data/quests";
 
@@ -15,15 +16,17 @@
 //   const [activeTab, setActiveTab] = useState("in-progress");
 //   const { user } = useAuth();
 
-//   // Отримуємо всі опубліковані квести (глобальні) + статичні
 //   const publishedQuests = JSON.parse(
 //     localStorage.getItem("publishedQuests") || "[]",
 //   );
 //   const allQuests = [...staticQuests, ...publishedQuests];
 
-//   // Персональні дані користувача з localStorage
 //   const progressData = JSON.parse(localStorage.getItem("progress") || "{}");
 //   const inProgressIds = user ? progressData[user.id] || [] : [];
+
+//   const completedData = JSON.parse(localStorage.getItem("completed") || "{}");
+//   const completedIds = user ? completedData[user.id] || [] : [];
+
 //   const favoritesIds = JSON.parse(localStorage.getItem("favorites") || "[]");
 //   const myQuestsIds = user
 //     ? JSON.parse(localStorage.getItem(`userQuests_${user.id}`) || "[]")
@@ -34,8 +37,7 @@
 //       case "in-progress":
 //         return allQuests.filter((q) => inProgressIds.includes(q.id));
 //       case "completed":
-//         // Поки що приклад, пізніше можна замінити на реальну логіку завершених квестів
-//         return allQuests.slice(0, 2);
+//         return allQuests.filter((q) => completedIds.includes(q.id));
 //       case "favorites":
 //         return allQuests.filter((q) => favoritesIds.includes(q.id));
 //       case "my-quests":
@@ -49,6 +51,15 @@
 
 //   return (
 //     <div className="max-w-7xl mx-auto px-4 py-10">
+//       {/* Кнопка назад до профілю */}
+//       <Link
+//         to="/profile"
+//         className="inline-flex items-center gap-2 text-text/60 hover:text-button mb-6 transition-colors"
+//       >
+//         <ArrowLeft size={18} />
+//         <span>Назад до профілю</span>
+//       </Link>
+
 //       <h1 className="text-3xl font-heading font-bold text-text mb-8">
 //         Особиста бібліотека
 //       </h1>
@@ -93,12 +104,14 @@
 //   );
 // }
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { BookOpen, Clock, Heart, FileText, ArrowLeft } from "lucide-react";
 import QuestCard from "../components/quest/QuestCard";
-import { allQuests as staticQuests } from "../data/quests";
+import { getPublishedQuests, getPublishedQuestsByAuthor } from "../api/quests";
+import { getProgress } from "../api/progress";
+import { getFavorites } from "../api/favorites";
 
 const tabs = [
   { key: "in-progress", label: "В процесі", icon: <Clock size={18} /> },
@@ -110,22 +123,31 @@ const tabs = [
 export default function MyLibrary() {
   const [activeTab, setActiveTab] = useState("in-progress");
   const { user } = useAuth();
+  const [allQuests, setAllQuests] = useState([]);
+  const [inProgressIds, setInProgressIds] = useState([]);
+  const [completedIds, setCompletedIds] = useState([]);
+  const [favoritesIds, setFavoritesIds] = useState([]);
+  const [myQuestIds, setMyQuestIds] = useState([]);
 
-  const publishedQuests = JSON.parse(
-    localStorage.getItem("publishedQuests") || "[]",
-  );
-  const allQuests = [...staticQuests, ...publishedQuests];
-
-  const progressData = JSON.parse(localStorage.getItem("progress") || "{}");
-  const inProgressIds = user ? progressData[user.id] || [] : [];
-
-  const completedData = JSON.parse(localStorage.getItem("completed") || "{}");
-  const completedIds = user ? completedData[user.id] || [] : [];
-
-  const favoritesIds = JSON.parse(localStorage.getItem("favorites") || "[]");
-  const myQuestsIds = user
-    ? JSON.parse(localStorage.getItem(`userQuests_${user.id}`) || "[]")
-    : [];
+  useEffect(() => {
+    if (!user) return;
+    const loadData = async () => {
+      const published = await getPublishedQuests();
+      setAllQuests(published);
+      const progress = await getProgress(user.id);
+      setInProgressIds(
+        progress.filter((p) => !p.is_completed).map((p) => p.quest_id),
+      );
+      setCompletedIds(
+        progress.filter((p) => p.is_completed).map((p) => p.quest_id),
+      );
+      const favs = await getFavorites(user.id);
+      setFavoritesIds(favs);
+      const myQuests = await getPublishedQuestsByAuthor(user.id);
+      setMyQuestIds(myQuests.map((q) => q.id));
+    };
+    loadData();
+  }, [user]);
 
   const getQuests = () => {
     switch (activeTab) {
@@ -136,7 +158,7 @@ export default function MyLibrary() {
       case "favorites":
         return allQuests.filter((q) => favoritesIds.includes(q.id));
       case "my-quests":
-        return publishedQuests.filter((q) => myQuestsIds.includes(q.id));
+        return allQuests.filter((q) => myQuestIds.includes(q.id));
       default:
         return [];
     }
@@ -146,7 +168,6 @@ export default function MyLibrary() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
-      {/* Кнопка назад до профілю */}
       <Link
         to="/profile"
         className="inline-flex items-center gap-2 text-text/60 hover:text-button mb-6 transition-colors"
@@ -159,7 +180,6 @@ export default function MyLibrary() {
         Особиста бібліотека
       </h1>
 
-      {/* Вкладки */}
       <div className="flex flex-wrap gap-2 mb-8">
         {tabs.map((tab) => (
           <button
@@ -177,7 +197,6 @@ export default function MyLibrary() {
         ))}
       </div>
 
-      {/* Список квестів */}
       {quests.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {quests.map((quest) => (

@@ -1,8 +1,9 @@
-// import { useState } from "react";
+// import { useState, useEffect } from "react";
 // import { ArrowLeft, Save, Globe, BookOpen } from "lucide-react";
-// import { Link } from "react-router-dom";
+// import { Link, useSearchParams, useNavigate } from "react-router-dom";
 // import Button from "../components/ui/Button";
 // import NovelEditor from "../components/editor/NovelEditor";
+// import { useAuth } from "../context/AuthContext";
 
 // const genres = [
 //   "Fantasy",
@@ -19,6 +20,11 @@
 // const ageRatings = ["6+", "12+", "16+", "18+"];
 
 // export default function CreateQuest() {
+//   const { user } = useAuth();
+//   const [searchParams] = useSearchParams();
+//   const navigate = useNavigate();
+//   const draftId = searchParams.get("draftId");
+
 //   const [step, setStep] = useState(1); // 1 = форма, 2 = редактор
 //   const [meta, setMeta] = useState({
 //     title: "",
@@ -27,6 +33,23 @@
 //     ageRating: "12+",
 //     cover: "",
 //   });
+//   const [initialScenes, setInitialScenes] = useState(null);
+//   const [loadingDraft, setLoadingDraft] = useState(false);
+
+//   useEffect(() => {
+//     if (!draftId || !user) return;
+//     setLoadingDraft(true);
+//     const drafts = JSON.parse(
+//       localStorage.getItem(`drafts_${user.id}`) || "[]",
+//     );
+//     const draft = drafts.find((d) => d.draftId === draftId);
+//     if (draft) {
+//       setMeta(draft.meta);
+//       setInitialScenes(draft.scenes);
+//       setStep(2); // одразу переходимо в редактор
+//     }
+//     setLoadingDraft(false);
+//   }, [draftId, user]);
 
 //   const handleChange = (field, value) => {
 //     setMeta((prev) => ({ ...prev, [field]: value }));
@@ -39,6 +62,14 @@
 //     }
 //     setStep(2);
 //   };
+
+//   if (loadingDraft) {
+//     return (
+//       <div className="min-h-screen flex items-center justify-center">
+//         <p className="text-text/60">Loading draft...</p>
+//       </div>
+//     );
+//   }
 
 //   return (
 //     <div className="min-h-screen bg-background">
@@ -151,7 +182,18 @@
 //           </div>
 //         </div>
 //       ) : (
-//         <NovelEditor questMeta={meta} onBack={() => setStep(1)} />
+//         <NovelEditor
+//           questMeta={meta}
+//           initialScenes={initialScenes}
+//           draftId={draftId}
+//           onBack={() => {
+//             if (draftId) {
+//               navigate("/profile");
+//             } else {
+//               setStep(1);
+//             }
+//           }}
+//         />
 //       )}
 //     </div>
 //   );
@@ -163,20 +205,8 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
 import NovelEditor from "../components/editor/NovelEditor";
 import { useAuth } from "../context/AuthContext";
-
-const genres = [
-  "Fantasy",
-  "Horror",
-  "Romance",
-  "Adventure",
-  "Detective",
-  "Sci-Fi",
-  "Slice of Life",
-  "Comedy",
-  "Thriller",
-];
-
-const ageRatings = ["6+", "12+", "16+", "18+"];
+import { getGenres } from "../api/genres";
+import { getQuestWithScenes } from "../api/quests";
 
 export default function CreateQuest() {
   const { user } = useAuth();
@@ -184,30 +214,42 @@ export default function CreateQuest() {
   const navigate = useNavigate();
   const draftId = searchParams.get("draftId");
 
-  const [step, setStep] = useState(1); // 1 = форма, 2 = редактор
+  const [step, setStep] = useState(1);
+  const [genres, setGenres] = useState([]);
   const [meta, setMeta] = useState({
     title: "",
     description: "",
-    genre: "Fantasy",
+    genreId: 1,
     ageRating: "12+",
     cover: "",
   });
   const [initialScenes, setInitialScenes] = useState(null);
+  const [questId, setQuestId] = useState(null); // для оновлення чернетки
   const [loadingDraft, setLoadingDraft] = useState(false);
+
+  useEffect(() => {
+    getGenres().then(setGenres).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (!draftId || !user) return;
     setLoadingDraft(true);
-    const drafts = JSON.parse(
-      localStorage.getItem(`drafts_${user.id}`) || "[]",
-    );
-    const draft = drafts.find((d) => d.draftId === draftId);
-    if (draft) {
-      setMeta(draft.meta);
-      setInitialScenes(draft.scenes);
-      setStep(2); // одразу переходимо в редактор
-    }
-    setLoadingDraft(false);
+    getQuestWithScenes(draftId)
+      .then((data) => {
+        if (data) {
+          setMeta({
+            title: data.meta.title,
+            description: data.meta.description,
+            genreId: data.meta.genreId,
+            ageRating: data.meta.ageRating,
+            cover: data.meta.cover,
+          });
+          setInitialScenes(data.scenes);
+          setQuestId(data.questId);
+          setStep(2); // одразу до редактора
+        }
+      })
+      .finally(() => setLoadingDraft(false));
   }, [draftId, user]);
 
   const handleChange = (field, value) => {
@@ -247,7 +289,6 @@ export default function CreateQuest() {
           </h1>
 
           <div className="space-y-6">
-            {/* Назва */}
             <div>
               <label className="block text-sm font-semibold text-text/70 mb-2">
                 Title
@@ -261,7 +302,6 @@ export default function CreateQuest() {
               />
             </div>
 
-            {/* Опис */}
             <div>
               <label className="block text-sm font-semibold text-text/70 mb-2">
                 Description
@@ -275,31 +315,31 @@ export default function CreateQuest() {
               />
             </div>
 
-            {/* Жанр */}
             <div>
               <label className="block text-sm font-semibold text-text/70 mb-2">
                 Genre
               </label>
               <select
-                value={meta.genre}
-                onChange={(e) => handleChange("genre", e.target.value)}
+                value={meta.genreId}
+                onChange={(e) =>
+                  handleChange("genreId", Number(e.target.value))
+                }
                 className="w-full px-4 py-3 bg-card rounded-xl border border-transparent focus:border-button outline-none font-body text-text"
               >
                 {genres.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
+                  <option key={g.id} value={g.id}>
+                    {g.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Вікове обмеження */}
             <div>
               <label className="block text-sm font-semibold text-text/70 mb-2">
                 Age Rating
               </label>
               <div className="flex gap-2">
-                {ageRatings.map((age) => (
+                {["6+", "12+", "16+", "18+"].map((age) => (
                   <button
                     key={age}
                     onClick={() => handleChange("ageRating", age)}
@@ -315,7 +355,6 @@ export default function CreateQuest() {
               </div>
             </div>
 
-            {/* Обкладинка (URL) */}
             <div>
               <label className="block text-sm font-semibold text-text/70 mb-2">
                 Cover Image URL (optional)
@@ -344,13 +383,10 @@ export default function CreateQuest() {
         <NovelEditor
           questMeta={meta}
           initialScenes={initialScenes}
-          draftId={draftId}
+          questId={questId}
           onBack={() => {
-            if (draftId) {
-              navigate("/profile");
-            } else {
-              setStep(1);
-            }
+            if (draftId) navigate("/profile");
+            else setStep(1);
           }}
         />
       )}

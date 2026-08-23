@@ -7,24 +7,21 @@
 // import { useState, useEffect } from "react";
 // import { useAuth } from "../context/AuthContext";
 // import { getAverageRating, saveRating, getUserRating } from "../utils/ratings";
+// import { incrementPlays, getPlays } from "../utils/plays";
 
 // export default function Quest() {
 //   const { id } = useParams();
 //   const navigate = useNavigate();
 //   const { user } = useAuth();
 
-//   // Об'єднуємо статичні та опубліковані квести
 //   const publishedQuests = JSON.parse(
 //     localStorage.getItem("publishedQuests") || "[]",
 //   );
 //   const allQuests = [...staticQuests, ...publishedQuests];
 //   const quest = allQuests.find((q) => q.id === Number(id));
 
-//   // Рейтинг
 //   const [avgRating, setAvgRating] = useState(null);
 //   const [userRating, setUserRating] = useState(null);
-
-//   // Улюблене
 //   const [favorite, setFavorite] = useState(() => {
 //     const favs = JSON.parse(localStorage.getItem("favorites") || "[]");
 //     return favs.includes(Number(id));
@@ -33,9 +30,7 @@
 //   useEffect(() => {
 //     if (quest) {
 //       setAvgRating(getAverageRating(quest.id));
-//       if (user) {
-//         setUserRating(getUserRating(quest.id, user.id));
-//       }
+//       if (user) setUserRating(getUserRating(quest.id, user.id));
 //     }
 //   }, [id, quest, user]);
 
@@ -43,7 +38,7 @@
 //     if (!user) return;
 //     saveRating(quest.id, user.id, value);
 //     setUserRating(value);
-//     setAvgRating(getAverageRating(quest.id)); // оновлюємо середню
+//     setAvgRating(getAverageRating(quest.id));
 //   };
 
 //   const toggleFavorite = () => {
@@ -60,6 +55,13 @@
 //   };
 
 //   const startQuest = () => {
+//     // Збільшуємо лічильник проходжень
+//     incrementPlays(quest.id);
+
+//     // Зберігаємо шлях, з якого прийшли, для кнопки "Back"
+//     sessionStorage.setItem("questReferrer", window.location.pathname);
+
+//     // Додаємо в прогрес, якщо авторизований
 //     if (user) {
 //       const progress = JSON.parse(localStorage.getItem("progress") || "{}");
 //       if (!progress[user.id]) progress[user.id] = [];
@@ -68,7 +70,19 @@
 //         localStorage.setItem("progress", JSON.stringify(progress));
 //       }
 //     }
+
 //     navigate(`/quest/${id}/play`);
+//   };
+
+//   const handleBack = () => {
+//     const referrer = sessionStorage.getItem("questReferrer");
+//     // Повертаємось на сторінку, з якої прийшли, або на головну
+//     if (referrer && referrer !== window.location.pathname) {
+//       navigate(referrer);
+//     } else {
+//       navigate("/");
+//     }
+//     sessionStorage.removeItem("questReferrer");
 //   };
 
 //   if (!quest) {
@@ -88,24 +102,20 @@
 //   }
 
 //   const displayRating = avgRating !== null ? avgRating : quest.rating;
+//   const totalPlays = quest.plays + getPlays(quest.id);
 
 //   return (
 //     <div className="max-w-5xl mx-auto px-4 py-10">
-//       {/* Кнопка назад */}
+//       {/* Кнопка назад – тепер використовує збережений шлях */}
 //       <button
-//         onClick={() => {
-//           if (window.history.length > 1) window.history.back();
-//           else navigate("/library");
-//         }}
+//         onClick={handleBack}
 //         className="inline-flex items-center gap-2 text-text/60 hover:text-button mb-8 transition-colors"
 //       >
 //         <ArrowLeft size={18} />
 //         <span>Back</span>
 //       </button>
 
-//       {/* Основна інформація */}
 //       <div className="grid md:grid-cols-2 gap-10">
-//         {/* Обкладинка */}
 //         <div className="rounded-2xl overflow-hidden shadow-lg bg-card">
 //           {quest.cover ? (
 //             <img
@@ -120,7 +130,6 @@
 //           )}
 //         </div>
 
-//         {/* Текстова інформація */}
 //         <div className="flex flex-col justify-between">
 //           <div>
 //             <div className="flex gap-3 mb-3">
@@ -140,16 +149,14 @@
 //               <span className="font-medium">{quest.author}</span>
 //             </div>
 
-//             {/* Рейтинг (середній) */}
 //             <div className="flex items-center gap-4 mb-6">
 //               <StarRating rating={displayRating} />
 //               <span className="text-sm text-text/50 flex items-center gap-1">
 //                 <Eye size={14} />
-//                 {quest.plays} plays
+//                 {totalPlays} plays
 //               </span>
 //             </div>
 
-//             {/* Оцінка користувача */}
 //             {user ? (
 //               <div className="mb-6">
 //                 <p className="text-sm text-text/70 mb-1">Your rating:</p>
@@ -177,7 +184,6 @@
 //             </p>
 //           </div>
 
-//           {/* Кнопки дій */}
 //           <div className="flex flex-col sm:flex-row gap-4">
 //             <Button
 //               variant="primary"
@@ -205,91 +211,96 @@
 //   );
 // }
 
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, User, Eye, Heart, ArrowLeft, Play } from "lucide-react";
-import { allQuests as staticQuests } from "../data/quests";
 import StarRating from "../components/ui/StarRating";
 import RatingInput from "../components/ui/RatingInput";
 import Button from "../components/ui/Button";
-import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getAverageRating, saveRating, getUserRating } from "../utils/ratings";
-import { incrementPlays, getPlays } from "../utils/plays";
+import { getQuestById } from "../api/quests";
+import { getAverageRating, getUserRating, saveRating } from "../api/ratings";
+import { addFavorite, removeFavorite, getFavorites } from "../api/favorites";
+import { getProgress } from "../api/progress";
 
 export default function Quest() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const publishedQuests = JSON.parse(
-    localStorage.getItem("publishedQuests") || "[]",
-  );
-  const allQuests = [...staticQuests, ...publishedQuests];
-  const quest = allQuests.find((q) => q.id === Number(id));
-
-  const [avgRating, setAvgRating] = useState(null);
+  const [quest, setQuest] = useState(null);
+  const [favorite, setFavorite] = useState(false);
   const [userRating, setUserRating] = useState(null);
-  const [favorite, setFavorite] = useState(() => {
-    const favs = JSON.parse(localStorage.getItem("favorites") || "[]");
-    return favs.includes(Number(id));
-  });
+  const [avgRating, setAvgRating] = useState(0);
 
   useEffect(() => {
-    if (quest) {
-      setAvgRating(getAverageRating(quest.id));
-      if (user) setUserRating(getUserRating(quest.id, user.id));
-    }
-  }, [id, quest, user]);
+    let isMounted = true;
+    const loadQuest = async () => {
+      try {
+        const data = await getQuestById(id);
+        if (isMounted) setQuest(data);
+        if (data) {
+          const avg = await getAverageRating(data.id);
+          if (isMounted) setAvgRating(avg);
+          if (user) {
+            const favs = await getFavorites(user.id);
+            if (isMounted) setFavorite(favs.includes(data.id));
+            const ur = await getUserRating(user.id, data.id);
+            if (isMounted) setUserRating(ur);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadQuest();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, user]);
 
-  const handleRate = (value) => {
+  const handleRate = async (value) => {
     if (!user) return;
-    saveRating(quest.id, user.id, value);
+    await saveRating(user.id, quest.id, value);
     setUserRating(value);
-    setAvgRating(getAverageRating(quest.id));
+    const newAvg = await getAverageRating(quest.id);
+    setAvgRating(newAvg);
   };
 
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!user) return;
-    const favs = JSON.parse(localStorage.getItem("favorites") || "[]");
-    let newFavs;
     if (favorite) {
-      newFavs = favs.filter((fid) => fid !== Number(id));
+      await removeFavorite(user.id, quest.id);
+      setFavorite(false);
     } else {
-      newFavs = [...favs, Number(id)];
+      await addFavorite(user.id, quest.id);
+      setFavorite(true);
     }
-    localStorage.setItem("favorites", JSON.stringify(newFavs));
-    setFavorite(!favorite);
   };
 
-  const startQuest = () => {
-    // Збільшуємо лічильник проходжень
-    incrementPlays(quest.id);
-
-    // Зберігаємо шлях, з якого прийшли, для кнопки "Back"
-    sessionStorage.setItem("questReferrer", window.location.pathname);
-
-    // Додаємо в прогрес, якщо авторизований
+  const startQuest = async () => {
+    if (!quest) return;
     if (user) {
-      const progress = JSON.parse(localStorage.getItem("progress") || "{}");
-      if (!progress[user.id]) progress[user.id] = [];
-      if (!progress[user.id].includes(Number(id))) {
-        progress[user.id].push(Number(id));
-        localStorage.setItem("progress", JSON.stringify(progress));
+      const progress = await getProgress(user.id);
+      const existing = progress.find((p) => p.quest_id === quest.id);
+      if (!existing) {
+        // Створюємо запис прогресу з першою сценою
+        const questData = await import("../api/quests").then((m) =>
+          m.getQuestWithScenes(quest.id),
+        );
+        if (questData && questData.scenes.length > 0) {
+          await import("../api/progress").then((m) =>
+            m.updateProgress(
+              user.id,
+              quest.id,
+              questData.scenes[0].id,
+              0,
+              false,
+            ),
+          );
+        }
       }
     }
-
-    navigate(`/quest/${id}/play`);
-  };
-
-  const handleBack = () => {
-    const referrer = sessionStorage.getItem("questReferrer");
-    // Повертаємось на сторінку, з якої прийшли, або на головну
-    if (referrer && referrer !== window.location.pathname) {
-      navigate(referrer);
-    } else {
-      navigate("/");
-    }
-    sessionStorage.removeItem("questReferrer");
+    navigate(`/quest/${quest.id}/play`);
   };
 
   if (!quest) {
@@ -308,14 +319,10 @@ export default function Quest() {
     );
   }
 
-  const displayRating = avgRating !== null ? avgRating : quest.rating;
-  const totalPlays = quest.plays + getPlays(quest.id);
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      {/* Кнопка назад – тепер використовує збережений шлях */}
       <button
-        onClick={handleBack}
+        onClick={() => window.history.back()}
         className="inline-flex items-center gap-2 text-text/60 hover:text-button mb-8 transition-colors"
       >
         <ArrowLeft size={18} />
@@ -341,26 +348,25 @@ export default function Quest() {
           <div>
             <div className="flex gap-3 mb-3">
               <span className="bg-card px-3 py-1 rounded-full text-xs font-semibold text-text">
-                {quest.genre}
+                {/* Genre name can be fetched separately, but for now blank */}
               </span>
               <span className="bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold">
                 {quest.ageRating}
               </span>
             </div>
-
             <h1 className="text-4xl font-heading font-bold text-text mb-2">
               {quest.title}
             </h1>
             <div className="flex items-center gap-2 text-text/60 mb-4">
               <User size={16} />
-              <span className="font-medium">{quest.author}</span>
+              <span className="font-medium">{quest.authorName}</span>
             </div>
 
             <div className="flex items-center gap-4 mb-6">
-              <StarRating rating={displayRating} />
+              <StarRating rating={avgRating} />
               <span className="text-sm text-text/50 flex items-center gap-1">
                 <Eye size={14} />
-                {totalPlays} plays
+                {quest.playCount} plays
               </span>
             </div>
 

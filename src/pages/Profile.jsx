@@ -24,6 +24,8 @@
 //   const [avatar, setAvatar] = useState(user?.avatar || "");
 //   const [userQuests, setUserQuests] = useState([]);
 //   const [drafts, setDrafts] = useState([]);
+//   const [inProgressCount, setInProgressCount] = useState(0);
+//   const [completedCount, setCompletedCount] = useState(0);
 
 //   useEffect(() => {
 //     if (!user) return;
@@ -41,14 +43,18 @@
 //       localStorage.getItem(`drafts_${user.id}`) || "[]",
 //     );
 //     setDrafts(userDrafts);
+
+//     // Прогрес та завершені
+//     const progress = JSON.parse(localStorage.getItem("progress") || "{}");
+//     const completed = JSON.parse(localStorage.getItem("completed") || "{}");
+//     setInProgressCount(progress[user.id]?.length || 0);
+//     setCompletedCount(completed[user.id]?.length || 0);
 //   }, [user]);
 
 //   const stats = {
 //     created: userQuests.length,
-//     inProgress:
-//       JSON.parse(localStorage.getItem("progress") || "{}")[user?.id]?.length ||
-//       0,
-//     completed: 3, // можна буде замінити на реальні дані
+//     inProgress: inProgressCount,
+//     completed: completedCount,
 //     favorites: JSON.parse(localStorage.getItem("favorites") || "[]").length,
 //     drafts: drafts.length,
 //   };
@@ -279,59 +285,72 @@ import {
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import QuestCard from "../components/quest/QuestCard";
+import {
+  getPublishedQuestsByAuthor,
+  getDraftsByAuthor,
+  deleteQuest,
+} from "../api/quests";
+import { getFavorites } from "../api/favorites";
+import { getProgress } from "../api/progress";
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [bio, setBio] = useState(user?.bio || "");
+  const [description, setDescription] = useState(user?.description || "");
   const [avatar, setAvatar] = useState(user?.avatar || "");
   const [userQuests, setUserQuests] = useState([]);
   const [drafts, setDrafts] = useState([]);
-  const [inProgressCount, setInProgressCount] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [stats, setStats] = useState({
+    created: 0,
+    inProgress: 0,
+    completed: 0,
+    favorites: 0,
+    drafts: 0,
+  });
 
   useEffect(() => {
     if (!user) return;
-    // Опубліковані квести
-    const ids = JSON.parse(
-      localStorage.getItem(`userQuests_${user.id}`) || "[]",
-    );
-    const published = JSON.parse(
-      localStorage.getItem("publishedQuests") || "[]",
-    );
-    setUserQuests(published.filter((q) => ids.includes(q.id)));
-
-    // Чернетки
-    const userDrafts = JSON.parse(
-      localStorage.getItem(`drafts_${user.id}`) || "[]",
-    );
-    setDrafts(userDrafts);
-
-    // Прогрес та завершені
-    const progress = JSON.parse(localStorage.getItem("progress") || "{}");
-    const completed = JSON.parse(localStorage.getItem("completed") || "{}");
-    setInProgressCount(progress[user.id]?.length || 0);
-    setCompletedCount(completed[user.id]?.length || 0);
+    const loadData = async () => {
+      try {
+        const created = await getPublishedQuestsByAuthor(user.id);
+        const progress = await getProgress(user.id);
+        const inProgress = progress.filter((p) => !p.is_completed).length;
+        const completed = progress.filter((p) => p.is_completed).length;
+        const favs = await getFavorites(user.id);
+        const draftsList = await getDraftsByAuthor(user.id);
+        setUserQuests(created);
+        setDrafts(draftsList);
+        setStats({
+          created: created.length,
+          inProgress,
+          completed,
+          favorites: favs.length,
+          drafts: draftsList.length,
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadData();
   }, [user]);
 
-  const stats = {
-    created: userQuests.length,
-    inProgress: inProgressCount,
-    completed: completedCount,
-    favorites: JSON.parse(localStorage.getItem("favorites") || "[]").length,
-    drafts: drafts.length,
+  const handleSave = async () => {
+    try {
+      await updateProfile({ description, avatar });
+      setIsEditing(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const handleSave = () => {
-    updateProfile({ bio, avatar });
-    setIsEditing(false);
-  };
-
-  const deleteDraft = (draftId) => {
-    const updatedDrafts = drafts.filter((d) => d.draftId !== draftId);
-    localStorage.setItem(`drafts_${user.id}`, JSON.stringify(updatedDrafts));
-    setDrafts(updatedDrafts);
+  const handleDeleteDraft = async (draftId) => {
+    if (window.confirm("Видалити чернетку?")) {
+      await deleteQuest(draftId);
+      const updatedDrafts = drafts.filter((d) => d.draftId !== draftId);
+      setDrafts(updatedDrafts);
+      setStats((prev) => ({ ...prev, drafts: updatedDrafts.length }));
+    }
   };
 
   return (
@@ -339,7 +358,6 @@ export default function Profile() {
       {/* Профільна інформація */}
       <div className="bg-card rounded-2xl p-6 md:p-8 shadow-sm mb-10">
         <div className="flex flex-col md:flex-row gap-6 items-start">
-          {/* Аватар */}
           <div className="relative">
             {user?.avatar ? (
               <img
@@ -367,8 +385,8 @@ export default function Profile() {
               <div className="space-y-2">
                 <input
                   type="text"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Коротка інформація про себе..."
                   className="w-full px-4 py-2 bg-background rounded-lg border border-primary/20 outline-none text-text"
                 />
@@ -399,7 +417,7 @@ export default function Profile() {
             ) : (
               <>
                 <p className="text-text/70">
-                  {user?.bio || "Інформація не вказана"}
+                  {user?.description || "Інформація не вказана"}
                 </p>
                 <button
                   onClick={() => setIsEditing(true)}
@@ -482,15 +500,15 @@ export default function Profile() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-heading font-bold text-lg">
-                      {draft.meta.title || "Untitled"}
+                      {draft.title || "Untitled"}
                     </h3>
                     <p className="text-xs text-text/50">
                       Last edited:{" "}
-                      {new Date(draft.lastEdited).toLocaleDateString()}
+                      {new Date(draft.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <button
-                    onClick={() => deleteDraft(draft.draftId)}
+                    onClick={() => handleDeleteDraft(draft.draftId)}
                     className="text-text/40 hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={16} />
@@ -498,10 +516,10 @@ export default function Profile() {
                 </div>
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className="bg-background px-2 py-1 rounded-full text-xs font-semibold">
-                    {draft.meta.genre}
+                    {draft.genreId}
                   </span>
                   <span className="bg-black/60 text-white px-2 py-1 rounded-full text-xs font-bold">
-                    {draft.meta.ageRating}
+                    {draft.ageRating}
                   </span>
                 </div>
                 <Button

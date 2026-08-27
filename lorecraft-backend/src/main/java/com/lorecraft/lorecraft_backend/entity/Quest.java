@@ -1,9 +1,24 @@
 package com.lorecraft.lorecraft_backend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumeratedValue;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,14 +53,21 @@ public class Quest {
     private Media coverMedia;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "age_rating", nullable = false)
     private AgeRating ageRating;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", nullable = false)
     private QuestStatus status = QuestStatus.DRAFT;
 
-    @Column(name = "average_rating", nullable = false, precision = 3, scale = 2)
+    @Column(
+            name = "average_rating",
+            nullable = false,
+            precision = 3,
+            scale = 2
+    )
     private BigDecimal averageRating = BigDecimal.ZERO;
 
     @Column(name = "play_count", nullable = false)
@@ -58,10 +80,22 @@ public class Quest {
     private LocalDateTime updatedAt;
 
     public enum AgeRating {
-        AGE_6,
-        AGE_12,
-        AGE_16,
-        AGE_18
+
+        AGE_6("6+"),
+        AGE_12("12+"),
+        AGE_16("16+"),
+        AGE_18("18+");
+
+        @EnumeratedValue
+        private final String value;
+
+        AgeRating(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
     }
 
     public enum QuestStatus {

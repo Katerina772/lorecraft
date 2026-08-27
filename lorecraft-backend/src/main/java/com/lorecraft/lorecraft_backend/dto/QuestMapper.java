@@ -18,12 +18,25 @@ public final class QuestMapper {
                 quest.getCoverMedia() != null
                         ? quest.getCoverMedia().getId()
                         : null,
-                quest.getAgeRating().name(),
+                convertAgeRating(quest.getAgeRating()),
                 quest.getStatus().name(),
                 quest.getAverageRating(),
                 quest.getPlayCount(),
                 quest.getCreatedAt(),
                 quest.getUpdatedAt()
         );
+    }
+
+    private static String convertAgeRating(Quest.AgeRating ageRating) {
+        if (ageRating == null) {
+            return null;
+        }
+
+        return switch (ageRating) {
+            case AGE_6 -> "6+";
+            case AGE_12 -> "12+";
+            case AGE_16 -> "16+";
+            case AGE_18 -> "18+";
+        };
     }
 }

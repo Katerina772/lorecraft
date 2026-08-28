@@ -1,5 +1,7 @@
 package com.lorecraft.lorecraft_backend.controller;
 
+import com.lorecraft.lorecraft_backend.dto.PlayQuestRequestDto;
+import com.lorecraft.lorecraft_backend.dto.PlayQuestResponseDto;
 import com.lorecraft.lorecraft_backend.dto.ProgressRequestDto;
 import com.lorecraft.lorecraft_backend.dto.ProgressResponseDto;
 import com.lorecraft.lorecraft_backend.service.ProgressService;
@@ -63,6 +65,13 @@ public class ProgressController {
             @Valid @RequestBody ProgressRequestDto request
     ) {
         return progressService.updateProgress(id, request);
+    }
+
+    @PostMapping("/play")
+    public PlayQuestResponseDto playQuest(
+            @Valid @RequestBody PlayQuestRequestDto request
+    ) {
+        return progressService.playQuest(request);
     }
 
     @DeleteMapping("/{id}")

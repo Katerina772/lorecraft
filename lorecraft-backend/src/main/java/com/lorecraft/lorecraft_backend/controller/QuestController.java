@@ -1,7 +1,9 @@
 package com.lorecraft.lorecraft_backend.controller;
 
+import com.lorecraft.lorecraft_backend.dto.QuestFullResponseDto;
 import com.lorecraft.lorecraft_backend.dto.QuestRequestDto;
 import com.lorecraft.lorecraft_backend.dto.QuestResponseDto;
+import com.lorecraft.lorecraft_backend.dto.QuestStatisticsResponseDto;
 import com.lorecraft.lorecraft_backend.entity.Quest;
 import com.lorecraft.lorecraft_backend.service.QuestService;
 import jakarta.validation.Valid;
@@ -25,9 +27,60 @@ public class QuestController {
         return questService.getAllQuests();
     }
 
+    @GetMapping("/search")
+    public List<QuestResponseDto> searchQuests(
+
+            @RequestParam(required = false)
+            String query,
+
+            @RequestParam(required = false)
+            Long authorId,
+
+            @RequestParam(required = false)
+            Long genreId,
+
+            @RequestParam(required = false)
+            Quest.QuestStatus status,
+
+            @RequestParam(required = false)
+            Quest.AgeRating ageRating,
+
+            @RequestParam(required = false)
+            Double minRating,
+
+            @RequestParam(required = false)
+            String sort
+    ) {
+        return questService.searchQuests(
+                query,
+                authorId,
+                genreId,
+                status,
+                ageRating,
+                minRating,
+                sort
+        );
+    }
+
     @GetMapping("/{id}")
-    public QuestResponseDto getQuestById(@PathVariable Long id) {
+    public QuestResponseDto getQuestById(
+            @PathVariable Long id
+    ) {
         return questService.getQuestById(id);
+    }
+
+    @GetMapping("/{id}/full")
+    public QuestFullResponseDto getFullQuest(
+            @PathVariable Long id
+    ) {
+        return questService.getFullQuest(id);
+    }
+
+    @GetMapping("/{id}/statistics")
+    public QuestStatisticsResponseDto getQuestStatistics(
+            @PathVariable Long id
+    ) {
+        return questService.getQuestStatistics(id);
     }
 
     @GetMapping("/author/{authorId}")
@@ -68,9 +121,25 @@ public class QuestController {
         return questService.updateQuest(id, request);
     }
 
+    @PatchMapping("/{id}/publish")
+    public QuestResponseDto publishQuest(
+            @PathVariable Long id
+    ) {
+        return questService.publishQuest(id);
+    }
+
+    @PatchMapping("/{id}/unpublish")
+    public QuestResponseDto unpublishQuest(
+            @PathVariable Long id
+    ) {
+        return questService.unpublishQuest(id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteQuest(@PathVariable Long id) {
+    public void deleteQuest(
+            @PathVariable Long id
+    ) {
         questService.deleteQuest(id);
     }
 }

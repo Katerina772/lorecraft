@@ -6,11 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface ProgressRepository extends JpaRepository<Progress, Long> {
+public interface ProgressRepository
+        extends JpaRepository<Progress, Long> {
 
-    Optional<Progress> findByUserIdAndQuestId(Long userId, Long questId);
+    Optional<Progress> findByUserIdAndQuestId(
+            Long userId,
+            Long questId
+    );
 
     List<Progress> findByUserId(Long userId);
 
-    List<Progress> findByQuestId(Long questId);
+    long countByQuestIdAndCompletedTrue(Long questId);
 }

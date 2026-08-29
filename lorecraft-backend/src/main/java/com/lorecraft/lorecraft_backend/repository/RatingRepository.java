@@ -28,4 +28,6 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
     BigDecimal calculateAverageRating(
             @Param("questId") Long questId
     );
+
+    long countByQuestId(Long questId);
 }

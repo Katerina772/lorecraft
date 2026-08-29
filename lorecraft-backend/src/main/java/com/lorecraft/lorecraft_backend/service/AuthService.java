@@ -17,13 +17,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public AuthService(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public UserResponseDto register(RegisterRequestDto request) {
@@ -91,8 +94,11 @@ public class AuthService {
 
         User updatedUser = userRepository.save(user);
 
+        String token = jwtService.generateToken(updatedUser);
+
         return new LoginResponseDto(
                 "Login successful",
+                token,
                 UserMapper.toResponse(updatedUser)
         );
     }

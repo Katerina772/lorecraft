@@ -7,6 +7,7 @@ import com.lorecraft.lorecraft_backend.service.MediaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -56,6 +57,21 @@ public class MediaController {
             @Valid @RequestBody MediaRequestDto request
     ) {
         return mediaService.createMedia(request);
+    }
+
+    @PostMapping("/upload")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MediaResponseDto uploadMedia(
+            @RequestParam Long ownerId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false)
+            Boolean publicMedia
+    ) {
+        return mediaService.uploadMedia(
+                ownerId,
+                file,
+                publicMedia
+        );
     }
 
     @DeleteMapping("/{id}")

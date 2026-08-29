@@ -1,12 +1,16 @@
 package com.lorecraft.lorecraft_backend.service;
 
+import com.lorecraft.lorecraft_backend.dto.PlayQuestRequestDto;
+import com.lorecraft.lorecraft_backend.dto.PlayQuestResponseDto;
 import com.lorecraft.lorecraft_backend.dto.ProgressMapper;
 import com.lorecraft.lorecraft_backend.dto.ProgressRequestDto;
 import com.lorecraft.lorecraft_backend.dto.ProgressResponseDto;
+import com.lorecraft.lorecraft_backend.entity.Choice;
 import com.lorecraft.lorecraft_backend.entity.Progress;
 import com.lorecraft.lorecraft_backend.entity.Quest;
 import com.lorecraft.lorecraft_backend.entity.Scene;
 import com.lorecraft.lorecraft_backend.entity.User;
+import com.lorecraft.lorecraft_backend.repository.ChoiceRepository;
 import com.lorecraft.lorecraft_backend.repository.ProgressRepository;
 import com.lorecraft.lorecraft_backend.repository.QuestRepository;
 import com.lorecraft.lorecraft_backend.repository.SceneRepository;
@@ -25,17 +29,20 @@ public class ProgressService {
     private final UserRepository userRepository;
     private final QuestRepository questRepository;
     private final SceneRepository sceneRepository;
+    private final ChoiceRepository choiceRepository;
 
     public ProgressService(
             ProgressRepository progressRepository,
             UserRepository userRepository,
             QuestRepository questRepository,
-            SceneRepository sceneRepository
+            SceneRepository sceneRepository,
+            ChoiceRepository choiceRepository
     ) {
         this.progressRepository = progressRepository;
         this.userRepository = userRepository;
         this.questRepository = questRepository;
         this.sceneRepository = sceneRepository;
+        this.choiceRepository = choiceRepository;
     }
 
     public List<ProgressResponseDto> getAllProgress() {
@@ -192,6 +199,115 @@ public class ProgressService {
         Progress updatedProgress = progressRepository.save(progress);
 
         return ProgressMapper.toResponse(updatedProgress);
+    }
+
+    public PlayQuestResponseDto playQuest(
+            PlayQuestRequestDto request
+    ) {
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "User not found with id: "
+                                        + request.userId()
+                        )
+                );
+
+        Quest quest = questRepository.findById(request.questId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Quest not found with id: "
+                                        + request.questId()
+                        )
+                );
+
+        Choice choice = choiceRepository.findById(request.choiceId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Choice not found with id: "
+                                        + request.choiceId()
+                        )
+                );
+
+        Scene currentScene = choice.getScene();
+        Scene nextScene = choice.getNextScene();
+
+        if (currentScene == null || nextScene == null) {
+            throw new IllegalArgumentException(
+                    "Choice has invalid scene references"
+            );
+        }
+
+        if (!currentScene.getQuest().getId().equals(quest.getId())) {
+            throw new IllegalArgumentException(
+                    "Choice does not belong to the specified quest"
+            );
+        }
+
+        if (!nextScene.getQuest().getId().equals(quest.getId())) {
+            throw new IllegalArgumentException(
+                    "Next scene does not belong to the specified quest"
+            );
+        }
+
+        List<Scene> scenes =
+                sceneRepository.findByQuestIdOrderByOrderNumberAsc(
+                        quest.getId()
+                );
+
+        if (scenes.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Quest has no scenes"
+            );
+        }
+
+        int currentIndex = -1;
+
+        for (int i = 0; i < scenes.size(); i++) {
+            if (scenes.get(i).getId().equals(nextScene.getId())) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        if (currentIndex == -1) {
+            throw new IllegalArgumentException(
+                    "Next scene does not belong to quest scenes"
+            );
+        }
+
+        int progressPercent = Math.round(
+                ((currentIndex + 1) * 100.0f) / scenes.size()
+        );
+
+        boolean completed = nextScene.isEnding();
+
+        Progress progress = progressRepository
+                .findByUserIdAndQuestId(
+                        user.getId(),
+                        quest.getId()
+                )
+                .orElse(null);
+
+        if (progress == null) {
+            progress = new Progress();
+            progress.setUser(user);
+            progress.setQuest(quest);
+        }
+
+        progress.setCurrentScene(nextScene);
+        progress.setProgressPercent(progressPercent);
+        progress.setCompleted(completed);
+        progress.setLastPlayed(LocalDateTime.now());
+
+        progressRepository.save(progress);
+
+        return new PlayQuestResponseDto(
+                quest.getId(),
+                nextScene.getId(),
+                progressPercent,
+                completed,
+                null
+        );
     }
 
     public void deleteProgress(Long id) {

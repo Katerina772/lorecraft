@@ -17,10 +17,6 @@ public class GlobalExceptionHandler {
 
     /**
      * Обробка помилок валідації @Valid.
-     *
-     * Наприклад:
-     * title = ""
-     * genreId = null
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -48,9 +44,6 @@ public class GlobalExceptionHandler {
 
     /**
      * Помилка неправильного типу параметра.
-     *
-     * Наприклад:
-     * /api/quests/status/WRONG_STATUS
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -68,7 +61,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Помилка неправильного JSON або неправильного формату body.
+     * Помилка неправильного JSON або формату body.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -102,14 +95,28 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Поточні Service використовують IllegalArgumentException
-     * для різних типів помилок.
+     * Користувач авторизований, але не має права
+     * виконувати операцію.
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleForbiddenException(
+            ForbiddenException exception
+    ) {
+
+        return Map.of(
+                "status", 403,
+                "error", "Forbidden",
+                "message", exception.getMessage()
+        );
+    }
+
+    /**
+     * Обробка IllegalArgumentException.
      *
-     * Тому тут розрізняємо:
-     *
-     * "not found" / "not found with id" -> 404
-     * "already exists" / "already taken" / "already registered" -> 409
-     * інші IllegalArgumentException -> 400
+     * not found                  -> 404
+     * already exists/taken/...   -> 409
+     * інші помилки               -> 400
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public org.springframework.http.ResponseEntity<Map<String, Object>>
@@ -121,7 +128,8 @@ public class GlobalExceptionHandler {
                 ? exception.getMessage()
                 : "Invalid request";
 
-        String lowerCaseMessage = message.toLowerCase();
+        String lowerCaseMessage =
+                message.toLowerCase();
 
         HttpStatus status;
 
@@ -142,11 +150,23 @@ public class GlobalExceptionHandler {
             status = HttpStatus.BAD_REQUEST;
         }
 
-        Map<String, Object> body = new LinkedHashMap<>();
+        Map<String, Object> body =
+                new LinkedHashMap<>();
 
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
+        body.put(
+                "status",
+                status.value()
+        );
+
+        body.put(
+                "error",
+                status.getReasonPhrase()
+        );
+
+        body.put(
+                "message",
+                message
+        );
 
         return org.springframework.http.ResponseEntity
                 .status(status)
@@ -155,8 +175,6 @@ public class GlobalExceptionHandler {
 
     /**
      * Запасний обробник неочікуваних помилок.
-     *
-     * Не розкриваємо stack trace або внутрішні деталі БД клієнту.
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -167,7 +185,8 @@ public class GlobalExceptionHandler {
         return Map.of(
                 "status", 500,
                 "error", "Internal Server Error",
-                "message", "An unexpected error occurred"
+                "message",
+                "An unexpected error occurred"
         );
     }
 }

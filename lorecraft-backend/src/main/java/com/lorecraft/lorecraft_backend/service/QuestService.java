@@ -12,6 +12,7 @@ import com.lorecraft.lorecraft_backend.entity.Genre;
 import com.lorecraft.lorecraft_backend.entity.Media;
 import com.lorecraft.lorecraft_backend.entity.Quest;
 import com.lorecraft.lorecraft_backend.entity.User;
+import com.lorecraft.lorecraft_backend.exception.ForbiddenException;
 import com.lorecraft.lorecraft_backend.repository.ChoiceRepository;
 import com.lorecraft.lorecraft_backend.repository.GenreRepository;
 import com.lorecraft.lorecraft_backend.repository.MediaRepository;
@@ -23,6 +24,8 @@ import com.lorecraft.lorecraft_backend.repository.UserRepository;
 import com.lorecraft.lorecraft_backend.specification.QuestSpecifications;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,6 +118,8 @@ public class QuestService {
                         )
                 );
 
+        checkCreatePermission(author);
+
         Genre genre = genreRepository.findById(request.genreId())
                 .orElseThrow(() ->
                         new IllegalArgumentException(
@@ -153,10 +158,12 @@ public class QuestService {
         quest.setPlayCount(0);
 
         LocalDateTime now = LocalDateTime.now();
+
         quest.setCreatedAt(now);
         quest.setUpdatedAt(now);
 
-        Quest savedQuest = questRepository.save(quest);
+        Quest savedQuest =
+                questRepository.save(quest);
 
         return QuestMapper.toResponse(savedQuest);
     }
@@ -172,7 +179,11 @@ public class QuestService {
                         )
                 );
 
-        Genre genre = genreRepository.findById(request.genreId())
+        checkQuestPermission(quest);
+
+        Genre genre = genreRepository.findById(
+                        request.genreId()
+                )
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Genre not found with id: "
@@ -204,27 +215,35 @@ public class QuestService {
 
         quest.setUpdatedAt(LocalDateTime.now());
 
-        Quest updatedQuest = questRepository.save(quest);
+        Quest updatedQuest =
+                questRepository.save(quest);
 
         return QuestMapper.toResponse(updatedQuest);
     }
 
     public void deleteQuest(Long id) {
-        if (!questRepository.existsById(id)) {
-            throw new IllegalArgumentException(
-                    "Quest not found with id: " + id
-            );
-        }
 
-        questRepository.deleteById(id);
+        Quest quest = questRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Quest not found with id: " + id
+                        )
+                );
+
+        checkQuestPermission(quest);
+
+        questRepository.delete(quest);
     }
 
-    public QuestFullResponseDto getFullQuest(Long questId) {
+    public QuestFullResponseDto getFullQuest(
+            Long questId
+    ) {
 
         Quest quest = questRepository.findById(questId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "Quest not found with id: " + questId
+                                "Quest not found with id: "
+                                        + questId
                         )
                 );
 
@@ -250,49 +269,54 @@ public class QuestService {
                 quest.getPlayCount()
         );
 
-        List<SceneFullDto> scenes = sceneRepository
-                .findByQuestIdOrderByOrderNumberAsc(questId)
-                .stream()
-                .map(scene -> {
+        List<SceneFullDto> scenes =
+                sceneRepository
+                        .findByQuestIdOrderByOrderNumberAsc(
+                                questId
+                        )
+                        .stream()
+                        .map(scene -> {
 
-                    List<ChoiceFullDto> choices =
-                            choiceRepository
-                                    .findBySceneId(scene.getId())
-                                    .stream()
-                                    .map(choice ->
-                                            new ChoiceFullDto(
-                                                    choice.getId(),
-                                                    choice.getText(),
-                                                    choice.getNextScene() != null
-                                                            ? choice.getNextScene().getId()
-                                                            : null
+                            List<ChoiceFullDto> choices =
+                                    choiceRepository
+                                            .findBySceneId(
+                                                    scene.getId()
                                             )
-                                    )
-                                    .toList();
+                                            .stream()
+                                            .map(choice ->
+                                                    new ChoiceFullDto(
+                                                            choice.getId(),
+                                                            choice.getText(),
+                                                            choice.getNextScene() != null
+                                                                    ? choice.getNextScene().getId()
+                                                                    : null
+                                                    )
+                                            )
+                                            .toList();
 
-                    return new SceneFullDto(
-                            scene.getId(),
-                            scene.getTitle(),
-                            scene.getText(),
-                            scene.getBackgroundMedia() != null
-                                    ? scene.getBackgroundMedia().getId()
-                                    : null,
-                            scene.getCharacterName(),
-                            scene.getCharacterMedia() != null
-                                    ? scene.getCharacterMedia().getId()
-                                    : null,
-                            scene.getAudioMedia() != null
-                                    ? scene.getAudioMedia().getId()
-                                    : null,
-                            scene.getOrderNumber(),
-                            scene.isEnding(),
-                            scene.getEndingType() != null
-                                    ? scene.getEndingType().name()
-                                    : null,
-                            choices
-                    );
-                })
-                .toList();
+                            return new SceneFullDto(
+                                    scene.getId(),
+                                    scene.getTitle(),
+                                    scene.getText(),
+                                    scene.getBackgroundMedia() != null
+                                            ? scene.getBackgroundMedia().getId()
+                                            : null,
+                                    scene.getCharacterName(),
+                                    scene.getCharacterMedia() != null
+                                            ? scene.getCharacterMedia().getId()
+                                            : null,
+                                    scene.getAudioMedia() != null
+                                            ? scene.getAudioMedia().getId()
+                                            : null,
+                                    scene.getOrderNumber(),
+                                    scene.isEnding(),
+                                    scene.getEndingType() != null
+                                            ? scene.getEndingType().name()
+                                            : null,
+                                    choices
+                            );
+                        })
+                        .toList();
 
         return new QuestFullResponseDto(
                 meta,
@@ -318,54 +342,63 @@ public class QuestService {
                 QuestSpecifications.titleContains(query);
 
         if (titleSpecification != null) {
-            specification = specification.and(titleSpecification);
+            specification =
+                    specification.and(titleSpecification);
         }
 
         Specification<Quest> descriptionSpecification =
                 QuestSpecifications.descriptionContains(query);
 
         if (descriptionSpecification != null) {
-            specification = specification.and(descriptionSpecification);
+            specification =
+                    specification.and(descriptionSpecification);
         }
 
         Specification<Quest> authorSpecification =
                 QuestSpecifications.authorEquals(authorId);
 
         if (authorSpecification != null) {
-            specification = specification.and(authorSpecification);
+            specification =
+                    specification.and(authorSpecification);
         }
 
         Specification<Quest> genreSpecification =
                 QuestSpecifications.genreEquals(genreId);
 
         if (genreSpecification != null) {
-            specification = specification.and(genreSpecification);
+            specification =
+                    specification.and(genreSpecification);
         }
 
         Specification<Quest> statusSpecification =
                 QuestSpecifications.statusEquals(status);
 
         if (statusSpecification != null) {
-            specification = specification.and(statusSpecification);
+            specification =
+                    specification.and(statusSpecification);
         }
 
         Specification<Quest> ageRatingSpecification =
                 QuestSpecifications.ageRatingEquals(ageRating);
 
         if (ageRatingSpecification != null) {
-            specification = specification.and(ageRatingSpecification);
+            specification =
+                    specification.and(ageRatingSpecification);
         }
 
         Specification<Quest> minimumRatingSpecification =
                 QuestSpecifications.minimumRating(minRating);
 
         if (minimumRatingSpecification != null) {
-            specification = specification.and(
-                    minimumRatingSpecification
-            );
+            specification =
+                    specification.and(
+                            minimumRatingSpecification
+                    );
         }
 
-        Sort sorting = switch (sort == null ? "" : sort) {
+        Sort sorting = switch (
+                sort == null ? "" : sort
+                ) {
 
             case "rating_asc" ->
                     Sort.by(
@@ -436,16 +469,21 @@ public class QuestService {
         Quest quest = questRepository.findById(questId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
-                                "Quest not found with id: " + questId
+                                "Quest not found with id: "
+                                        + questId
                         )
                 );
 
         long ratingCount =
-                ratingRepository.countByQuestId(questId);
+                ratingRepository.countByQuestId(
+                        questId
+                );
 
         long completedCount =
                 progressRepository
-                        .countByQuestIdAndCompletedTrue(questId);
+                        .countByQuestIdAndCompletedTrue(
+                                questId
+                        );
 
         double averageRating =
                 quest.getAverageRating() != null
@@ -461,7 +499,9 @@ public class QuestService {
         );
     }
 
-    public QuestResponseDto publishQuest(Long id) {
+    public QuestResponseDto publishQuest(
+            Long id
+    ) {
 
         Quest quest = questRepository.findById(id)
                 .orElseThrow(() ->
@@ -470,15 +510,25 @@ public class QuestService {
                         )
                 );
 
-        quest.setStatus(Quest.QuestStatus.PUBLISHED);
-        quest.setUpdatedAt(LocalDateTime.now());
+        checkQuestPermission(quest);
 
-        Quest updatedQuest = questRepository.save(quest);
+        quest.setStatus(
+                Quest.QuestStatus.PUBLISHED
+        );
+
+        quest.setUpdatedAt(
+                LocalDateTime.now()
+        );
+
+        Quest updatedQuest =
+                questRepository.save(quest);
 
         return QuestMapper.toResponse(updatedQuest);
     }
 
-    public QuestResponseDto unpublishQuest(Long id) {
+    public QuestResponseDto unpublishQuest(
+            Long id
+    ) {
 
         Quest quest = questRepository.findById(id)
                 .orElseThrow(() ->
@@ -487,15 +537,114 @@ public class QuestService {
                         )
                 );
 
-        quest.setStatus(Quest.QuestStatus.DRAFT);
-        quest.setUpdatedAt(LocalDateTime.now());
+        checkQuestPermission(quest);
 
-        Quest updatedQuest = questRepository.save(quest);
+        quest.setStatus(
+                Quest.QuestStatus.DRAFT
+        );
+
+        quest.setUpdatedAt(
+                LocalDateTime.now()
+        );
+
+        Quest updatedQuest =
+                questRepository.save(quest);
 
         return QuestMapper.toResponse(updatedQuest);
     }
 
-    private Quest.AgeRating parseAgeRating(String ageRating) {
+    private void checkCreatePermission(
+            User author
+    ) {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+
+            throw new IllegalArgumentException(
+                    "Authentication is required"
+            );
+        }
+
+        boolean isAdmin =
+                authentication
+                        .getAuthorities()
+                        .stream()
+                        .anyMatch(authority ->
+                                authority
+                                        .getAuthority()
+                                        .equals("ROLE_ADMIN")
+                        );
+
+        if (isAdmin) {
+            return;
+        }
+
+        String username =
+                authentication.getName();
+
+        if (!author
+                .getUsername()
+                .equals(username)) {
+
+            throw new ForbiddenException(
+                    "You cannot create a quest for another user"
+            );
+        }
+    }
+
+    private void checkQuestPermission(
+            Quest quest
+    ) {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+
+            throw new IllegalArgumentException(
+                    "Authentication is required"
+            );
+        }
+
+        boolean isAdmin =
+                authentication
+                        .getAuthorities()
+                        .stream()
+                        .anyMatch(authority ->
+                                authority
+                                        .getAuthority()
+                                        .equals("ROLE_ADMIN")
+                        );
+
+        if (isAdmin) {
+            return;
+        }
+
+        String username =
+                authentication.getName();
+
+        if (quest.getAuthor() == null
+                || !quest.getAuthor()
+                .getUsername()
+                .equals(username)) {
+
+            throw new ForbiddenException(
+                    "You do not have permission to modify this quest"
+            );
+        }
+    }
+
+    private Quest.AgeRating parseAgeRating(
+            String ageRating
+    ) {
 
         if (ageRating == null) {
             throw new IllegalArgumentException(
@@ -504,13 +653,23 @@ public class QuestService {
         }
 
         return switch (ageRating) {
-            case "6+" -> Quest.AgeRating.AGE_6;
-            case "12+" -> Quest.AgeRating.AGE_12;
-            case "16+" -> Quest.AgeRating.AGE_16;
-            case "18+" -> Quest.AgeRating.AGE_18;
-            default -> throw new IllegalArgumentException(
-                    "Invalid age rating: " + ageRating
-            );
+            case "6+" ->
+                    Quest.AgeRating.AGE_6;
+
+            case "12+" ->
+                    Quest.AgeRating.AGE_12;
+
+            case "16+" ->
+                    Quest.AgeRating.AGE_16;
+
+            case "18+" ->
+                    Quest.AgeRating.AGE_18;
+
+            default ->
+                    throw new IllegalArgumentException(
+                            "Invalid age rating: "
+                                    + ageRating
+                    );
         };
     }
 }
